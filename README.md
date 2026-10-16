@@ -382,6 +382,7 @@ report, the patch history and the mailing-list threads.
 | #036 | `drivers/gpu/drm/gma500/intel_gmbus.c`           | [OOB access and integer underflow in gmbus\_xfer()](./details/OOB%20access%20and%20integer%20underflow%20in%20gmbus_xfer%28%29.md)                                             | 🆕 **Bug Reported** <br />🛠️ **Patch Sent**                                                                          |
 | #037 | `drivers/tty/tty_io.c`                           | [RCU stall via excessively long TCSBRKP duration](./details/RCU%20stall%20via%20excessively%20long%20TCSBRKP%20duration.md)                                                    | 👀 **Bug Confirmed**<br />❌ **WontFix**                                                                               |
 
+<<<<<<< HEAD
 ### Crash Reports
 
 <div align="justify">
@@ -390,3 +391,5 @@ Crash reports, minimized reproducers and reproduction materials are collected in
 repository: [DevGen Crash Reports](https://anonymous.4open.science/r/Crashes).
 
 </div>
+=======
+>>>>>>> aad0e926fddfc0352ffec0ec5860be8d59b83b9c
