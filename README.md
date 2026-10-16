@@ -8,19 +8,31 @@
 
 ![Fuzzer](https://img.shields.io/badge/fuzzer-Syzkaller-orange)
 
+<div align="justify">
+
 DevGen generates executable QEMU device models from Linux PCI/PCIe driver source code, so that  
 drivers whose physical devices are unavailable can still be fuzzed.
+
+</div>
+
+<div align="justify">
 
 Given a target driver, DevGen recovers the device constraints encoded in the driver source, guides  
 an LLM to construct a virtual device model, validates the candidate through code checks and QEMU  
 runtime feedback, and then completes the Syzlang descriptions of the userspace interfaces that  
 appear once the driver binds — which lets Syzkaller exercise the driver.
 
+</div>
+
+<div align="justify">
+
 Run over 855 PCI/PCIe drivers with three LLM backends, DevGen builds at least one working model for  
 470 drivers, makes 84 previously untestable drivers testable, and generates or completes 438  
 Syzlang call descriptions. It has uncovered 37 previously unknown Linux kernel bugs — 18 patches  
 merged so far, including 3 driver removals, and 12 bugs with CVE identifiers. They are listed in the  
 Kernel Bug Tracker section below.
+
+</div>
 
 ## Components
 
@@ -62,6 +74,8 @@ DevGen/
 
 ## Static Context Extraction
 
+<div align="justify">
+
 Device constraints are distributed across registration objects, callbacks, headers and call chains  
 that span multiple files: a local code fragment may omit resource layout constraints or state  
 dependencies, whereas supplying the whole kernel source introduces substantial irrelevant context.  
@@ -73,13 +87,21 @@ resources the driver accesses. The analysis also collects the code around device
 conditions and error checks in `probe` and its callees, and the interface registration and handling  
 code that provides the context for operations used after binding. The result is organized as
 
+</div>
+
 ```
 E(D) = < I(D), R(D), C_init(D), C_func(D) >
 ```
 
+<div align="justify">
+
 where `I(D)` contains the device identification information, `R(D)` the resource layout,  
 `C_init(D)` the source context for initialization requirements, and `C_func(D)` the device  
 interactions and interface logic relevant after binding.
+
+</div>
+
+<div align="justify">
 
 Instead of placing all collected code in every LLM prompt, the extracted context is organized into  
 a **structured summary** and a **searchable source index**. The summary provides device identity,  
@@ -89,12 +111,18 @@ interaction details are needed, the LLM issues a `need_resource` request and the
 fragments plus calling context are added to the current prompt before modeling resumes. Retrieval  
 stops when `need_resource` is empty or the retrieval iteration limit is reached.
 
+</div>
+
 See [`static_analyze/README.md`](static_analyze/README.md) for build and run instructions.
 
 ## LLM-Guided Device Modeling
 
+<div align="justify">
+
 A candidate model is initialized from a predefined QEMU template using the information obtained  
 through static context extraction, and is then completed in two stages:
+
+</div>
 
 - **Structural modeling** establishes the device skeleton — the target device identity (the first  
   valid entry of the driver's `pci_device_id` table), the BARs and their associated address spaces,  
@@ -106,6 +134,8 @@ through static context extraction, and is then completed in two stages:
   the model's internal state so that dependencies between successive operations are preserved (for  
   example, a start command followed by polling of a ready bit).
 
+<div align="justify">
+
 The candidate then undergoes **code validation** (clangd diagnostics and QEMU compilation) and  
 **runtime semantic validation** (QEMU startup, kernel logs and `lspci -k` binding status). Failures  
 in either stage guide iterative repair using the corresponding diagnostics together with a repair  
@@ -113,18 +143,30 @@ case library covering 9 common modeling error categories; runtime semantic valid
 three attempts (`MAX = 3`), with code validation repeated after each semantic repair. The first  
 candidate that satisfies
 
+</div>
+
 ```
 Valid(M, D) = Code(M) ∧ Boot(M) ∧ Bind(M, D)
 ```
 
+<div align="justify">
+
 is returned as the model `M` for driver `D`; binding is verified by the target driver's name in the  
 `Kernel driver in use` field reported by `lspci -k` for that device.
+
+</div>
+
+<div align="justify">
 
 The implementation is in [`DevGen_Core/`](DevGen_Core/) (see  
 [`DevGen_Core/README.md`](DevGen_Core/README.md)) and the repair case library in  
 [`Case_Repair_Library/`](Case_Repair_Library/).
 
+</div>
+
 ## Driver Fuzzing Integration
+
+<div align="justify">
 
 The validated device model enables the target driver to complete its `probe` routine and bind to  
 the generated device. After binding, testing the driver requires exercising the software interfaces  
@@ -136,15 +178,23 @@ ones and completes the incomplete ones. All of this is implemented in
 [`fuzzing_integration/`](fuzzing_integration/README.md), where the concrete run order, per-script  
 usage and directory layout are documented.
 
+</div>
+
 ### Interface Identification
+
+<div align="justify">
 
 To locate the candidate device nodes, two QEMU runs are compared under otherwise identical  
 conditions, with and without the validated model `M`. Let `N+(D)` and `N-(D)` denote the `/dev`  
 node sets with and without `M`; their difference defines the candidate node set:
 
+</div>
+
 ```
 ΔN(D) = N+(D) \ N-(D)
 ```
+
+<div align="justify">
 
 Because startup can introduce unrelated nodes, each candidate in `ΔN(D)` is traced through  
 registration and subsystem dispatch to establish its association with the target driver. The  
@@ -157,6 +207,10 @@ registration and dispatch paths. Interfaces that do not correspond to newly crea
 (debugfs interfaces, or existing shared nodes such as `/dev/ptmx`) are identified through source  
 registration analysis and predefined mappings between drivers and Syzlang descriptions.
 
+</div>
+
+<div align="justify">
+
 The identified operations and command branches are then matched against the existing Syzlang  
 corpus. Variants covered by existing descriptions are grouped as `ExistingCalls(D)` and reused;  
 those lacking descriptions, or whose descriptions omit essential constraints, are grouped as  
@@ -164,12 +218,18 @@ those lacking descriptions, or whose descriptions omit essential constraints, ar
 described, targeted fuzzing is configured with the existing descriptions alone and description  
 completion is skipped.
 
+</div>
+
 
 ### Syzlang Description Completion
+
+<div align="justify">
 
 For each syscall variant in `MissingCalls(D)`, the relevant code and definitions are selected from
 the Interface Source Context, and three analyses recover the semantics needed for description
 completion:
+
+</div>
 
 - **Identifier deduction** — the device path, the opening method and the operation identifier.
 - **Type recovery** — argument direction, primitive types, pointer indirection, structures and
@@ -177,20 +237,30 @@ completion:
 - **Dependency analysis** — resource relationships and the call ordering they impose, for example
   `syz_open_dev` produces a file-descriptor resource that is consumed by a subsequent `ioctl`.
 
+<div align="justify">
+
 These recovered constraints guide the LLM in generating the missing descriptions, or in extending
 existing ones where commands or essential constraints are absent. Each candidate description is
 validated through **Syzlang compilation followed by a Syzkaller build**; if either step fails, the
 LLM revises the candidate using the diagnostics and both validation steps are repeated. Descriptions
 that pass both steps constitute the *Generated Descriptions*.
 
+</div>
+
 ### Targeted Syzkaller Fuzzing
+
+<div align="justify">
 
 The syscall variants defined by the reused descriptions and those defined by the newly validated
 descriptions form the enabled call set for driver `D`:
 
+</div>
+
 ```
 Calls(D) = ExistingCalls(D) ∪ GeneratedCalls(D)
 ```
+
+<div align="justify">
 
 When no description completion is required, `GeneratedCalls(D) = ∅` and only `ExistingCalls(D)`
 remains. The call names in `Calls(D)` are written to the `enable_syscalls` configuration so that
@@ -201,11 +271,17 @@ arguments and executes them against the interfaces exposed after binding, while 
 the driver's hardware accesses using the responses and state transitions implemented during
 behavioral modeling.
 
+</div>
+
+<div align="justify">
+
 To track the kernel code reached by these seeds, the kernel's **KCOV** facility records coverage
 that Syzkaller uses to guide subsequent seed generation and mutation. **KASAN** is enabled to report
 faults detected during execution, while kernel logs capture additional runtime failures. Each crash
 report is saved together with its triggering seed, the corresponding device model and any
 successfully minimized reproducer.
+
+</div>
 
 ## Configuration and Results
 
@@ -228,15 +304,23 @@ Two items are too large to be versioned in this repository and are hosted on Zen
 
 **Download:** [Zenodo record 23149295](https://zenodo.org/records/23149295?preview=1&token=eyJhbGciOiJIUzUxMiJ9.eyJpZCI6IjMxYWU1ZjFkLTI1NTUtNDJiZC1iYTU1LTM2YjE5NWFjMjc1OCIsImRhdGEiOnt9LCJyYW5kb20iOiJmZDNmNTQxMzEzMmI1YTA0NGNjMTY4OGU2MWQ4Mzk5ZiJ9.um5ERBmcntkq1G97mAU8iap1U6csyl_9B1v_PMg2OqeW9bnLXbCBCsr4elaRxojxBaRAHSmiK-riDHw1fIt7uw)
 
+> <div align="justify">
+>
 > **Note.** This is currently a preview link to an unpublished Zenodo deposit: the record has no
 > registered DOI yet and is reachable only through the access token embedded in the URL above.
 > Publish the deposit and replace the link with the permanent URL or DOI so that the downloads stay
 > available.
+>
+> </div>
 
 ## 🐛 Kernel Bug Tracker
 
+<div align="justify">
+
 DevGen has found the Linux kernel bugs listed below. Each entry links to its own write-up with the
 report, the patch history and the mailing-list threads.
+
+</div>
 
 ### 📊 Status Legend
 
@@ -300,5 +384,9 @@ report, the patch history and the mailing-list threads.
 
 ### Crash Reports
 
+<div align="justify">
+
 Crash reports, minimized reproducers and reproduction materials are collected in a separate
 repository: [DevGen Crash Reports](https://anonymous.4open.science/r/Crashes).
+
+</div>
